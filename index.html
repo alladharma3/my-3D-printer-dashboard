@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Printer Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: linear-gradient(90deg, #1e3c72, #2a5298);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 25px;
+            font-weight: 600;
+            font-size: 1.1em;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .navbar a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            background: #00d4ff;
+            left: 0;
+            bottom: -5px;
+            transition: width 0.3s ease;
+        }
+        .navbar a:hover::after {
+            width: 100%;
+        }
+        .navbar a:hover {
+            color: #00d4ff;
+            transform: translateY(-2px);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 25px;
+            font-size: 2em;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        .data-box {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .data-box:hover {
+            transform: translateY(-5px);
+        }
+        .data-box span {
+            font-weight: bold;
+            color: #2a5298;
+        }
+        #progress-bar {
+            width: 100%;
+            height: 25px;
+            background: #ddd;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        #progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #1e3c72);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .controls {
+            text-align: center;
+            margin: 25px 0;
+        }
+        button {
+            padding: 12px 30px;
+            margin: 0 15px;
+            border: none;
+            border-radius: 30px;
+            background: linear-gradient(45deg, #2a5298, #1e3c72);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #1e3c72, #00d4ff);
+            transform: scale(1.1);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #temp-chart {
+            margin-top: 25px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+        .profile {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .profile a {
+            color: #2a5298;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .profile a:hover {
+            color: #00d4ff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div>
+            <a href="/" onclick="goToHome(event)">Home</a>
+            <a href="#settings" onclick="showSettings(event)">Settings</a>
+            <a href="#history" onclick="showHistory(event)">Print History</a>
+        </div>
+        <div>
+            <a href="#profile" onclick="scrollToProfile(event)">Profile</a>
+            <a href="#logout" onclick="logout(event)">Logout</a>
+        </div>
+    </div>
+    <div class="container">
+        <h1>3D Printer Dashboard</h1>
+        <div class="dashboard-grid">
+            <div>
+                <div class="data-box">Extruder Temp: <span id="extruder">0</span>°C</div>
+                <div class="data-box">Heater Bed Temp: <span id="heater-bed">0</span>°C</div>
+                <div class="data-box">Print Progress: <span id="progress-text">0</span>%</div>
+                <div id="progress-bar"><div id="progress"></div></div>
+                <div class="data-box">Status: <span id="status">Idle</span></div>
+                <div class="controls">
+                    <button id="start-btn">Start Print</button>
+                    <button id="stop-btn">Stop Print</button>
+                    <button onclick="resetPrinter()">Reset Printer</button>
+                </div>
+            </div>
+            <div>
+                <canvas id="temp-chart"></canvas>
+            </div>
+        </div>
+        <div class="profile" id="profile-section">
+            <h3>User Profile</h3>
+            <p>Name: <span id="profile-name">Loading...</span></p>
+            <p>Email: <span id="profile-email">Loading...</span></p>
+            <p>Last Print: <span id="profile-last-print">Loading...</span></p>
+            <a href="#edit-profile" onclick="editProfile(event)">Edit Profile</a>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let chart;
+
+        const ctx = document.getElementById('temp-chart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Extruder Temp (°C)', data: [], borderColor: '#00d4ff', fill: false },
+                    { label: 'Heater Bed Temp (°C)', data: [], borderColor: '#1e3c72', fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { min: 0, max: 250 } }
+            }
+        });
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch(`${API_URL}/printer_status`);
+                if (!response.ok) throw new Error('Failed to fetch status');
+                const data = await response.json();
+
+                document.getElementById('extruder').textContent = data.extruder_temp;
+                document.getElementById('heater-bed').textContent = data.heater_bed_temp;
+                document.getElementById('progress-text').textContent = data.print_progress;
+                document.getElementById('progress').style.width = `${data.print_progress}%`;
+                document.getElementById('status').textContent = data.status;
+
+                document.getElementById('start-btn').disabled = data.status === 'Printing';
+                document.getElementById('stop-btn').disabled = data.status === 'Idle';
+
+                chart.data.labels = data.history.extruder.map((_, i) => i + 1);
+                chart.data.datasets[0].data = data.history.extruder;
+                chart.data.datasets[1].data = data.history.heater_bed;
+                chart.update();
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        async function startPrinting() {
+            try {
+                const response = await fetch(`${API_URL}/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error('Failed to start');
+                console.log(await response.json());
+            } catch (error) {
+                console.error('Start error:', error);
+            }
+        }
+
+        async function stopPrinting() {
+            try {
+                const response = await fetch(`${API_URL}/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error('Failed to stop');
+                console.log(await response.json());
+            } catch (error) {
+                console.error('Stop error:', error);
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const response = await fetch(`${API_URL}/profile`);
+                if (!response.ok) throw new Error('Failed to fetch profile');
+                const data = await response.json();
+                document.getElementById('profile-name').textContent = data.name;
+                document.getElementById('profile-email').textContent = data.email;
+                document.getElementById('profile-last-print').textContent = data.last_print;
+            } catch (error) {
+                console.error('Profile error:', error);
+            }
+        }
+
+        function goToHome(event) {
+            event.preventDefault();
+            window.location.href = '/'; // Reloads the dashboard
+        }
+
+        function showSettings(event) {
+            event.preventDefault();
+            alert('Settings page coming soon!');
+        }
+
+        function showHistory(event) {
+            event.preventDefault();
+            alert('Print History: Check back later for your print logs!');
+        }
+
+        function scrollToProfile(event) {
+            event.preventDefault();
+            document.getElementById('profile-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function logout(event) {
+            event.preventDefault();
+            alert('Logging out... (Feature TBD)');
+        }
+
+        function resetPrinter() {
+            stopPrinting();
+            alert('Printer reset successfully!');
+        }
+
+        function editProfile(event) {
+            event.preventDefault();
+            alert('Edit Profile feature coming soon!');
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startPrinting);
+        document.getElementById('stop-btn').addEventListener('click', stopPrinting);
+
+        setInterval(updateDashboard, 1000);
+        updateDashboard();
+        loadProfile();
+    </script>
+</body>
+</html>
